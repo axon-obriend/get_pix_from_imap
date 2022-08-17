@@ -33,10 +33,11 @@ class message:
         self.compactDate = eDateTime.strftime('%Y%m%d%H%M%S')
         self.msgParts = {}
 
-        n = 0
         if self.isMultipart:
+            n = 0
             for p in self.emailObj.walk():
                 self.msgParts[n] = msgPart(p)
+                n += 1
 
 def wr_log(f, msg):
     now = datetime.datetime.today().strftime('%Y-%m-%d %H:%M:%S')
