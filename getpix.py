@@ -8,6 +8,35 @@ from datetime import datetime
 
 config = configparser.ConfigParser(allow_no_value=True,interpolation=configparser.ExtendedInterpolation())
 
+class msgPart:
+    def __init(self, p):
+        self.msgPartObj = p
+        self.contentType = str( p.get_content_type() )
+        self.contentDisp = str( p.get_content_disposition() )
+        self.fileName = str( p.get_filename() )
+        self.fileData = p.get_payload(decode=True)
+
+class message:
+    def __init__(self, i, num):
+
+        # Retrieve and parse an email
+        data = i.fetch(num, '(UID RFC822)')
+
+        self.emailObj = email.message_from_bytes( data[1][0][1] )
+        self.isMultipart = self.emailObj.is_multipart()
+        self.messageId = e.__getitem__('Message-Id')
+        self.fromName, self.fromAddr = email.utils.parseaddr( e.get('From') )
+        self.fromLocalPart, self.fromDomain = self.fromName.split('@')
+        self.dubject = e.__getitem__('Subject')
+        self.date = e.__getitem__('Date')
+        self.dateTime=datetime.strptime(eDate, '%a, %d %b %Y %H:%M:%S %z')
+        self.compactDate = eDateTime.strftime('%Y%m%d%H%M%S')
+        self.msgParts = {}
+
+        n = 0
+        if self.isMultipart:
+            for p in self.emailObj.walk():
+                self.msgParts[n] = msgPart(p)
 
 def wr_log(f, msg):
     now = datetime.datetime.today().strftime('%Y-%m-%d %H:%M:%S')
