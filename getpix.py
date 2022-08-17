@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import os, io, re, configparser
+import sys, os, io, re, configparser
 import imaplib, email
 import pprint
 from PIL import Image, ExifTags, ImageOps
@@ -92,7 +92,12 @@ def path_munge(fn, d, email):
 get_config()
 
 i = imaplib.IMAP4_SSL( config['imap']['server'] )
-i.login(config['imap']['username'], config['imap']['password'])
+try:
+    i.login(config['imap']['username'], config['imap']['password'])
+except:
+    print('Failed to log in to IMAP server.')
+    sys.exit(1)
+
 do_setup()
 
 i.select( config['imap']['inboxFolder'] )
