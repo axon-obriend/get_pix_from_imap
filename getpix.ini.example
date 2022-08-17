@@ -1,3 +1,7 @@
+[logging]
+enabled = True
+debug = False
+
 [imap]
 server = localhost
 username = user@example.com
@@ -22,4 +26,7 @@ maxheight = 1000
 rolesAllowed = contributor, author, editor, administrator
 
 [authorizedEmails]
+# someone@example.com
+
+[bannedEmails]
 # someone@example.com
