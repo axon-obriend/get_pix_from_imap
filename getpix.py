@@ -24,7 +24,7 @@ imgStore = '/var/www/clients/client1/web7/web/wp-content/folder-slider/'
 def get_config():
     global config
 
-    config.add_section('imap']
+    config.add_section('imap')
     config.set('imap', 'server',          'localhost')
     config.set('imap', 'username',        'email@example.com')
     config.set('imap', 'password',        'password')
@@ -32,27 +32,23 @@ def get_config():
     config.set('imap', 'processedFolder', 'Processed')
     config.set('imap', 'skippedFolder',   'Skipped')
 
-    config.add_section('paths']
+    config.add_section('paths')
     config.set('paths', 'basePath',   '/tmp/')
     config.set('paths', 'originals',  '${basePath}originals/')
     config.set('paths', 'processed',  '${basePath}processed/')
 
-    config.add_section('images']
+    config.add_section('images')
     config.set('images', 'minWidth',   '480')
     config.set('images', 'minHeight',  '480')
     config.set('images', 'maxWidth',  '2000')
     config.set('images', 'maxHeight', '1000')
 
-    config.add_section('security']
+    config.add_section('security')
     config.set('security', 'rolesAllowed', '')
 
-    config.add_section('authorizedEmails']
+    config.add_section('authorizedEmails')
 
     config.read('getpix.ini')
-
-    # Convert comma-separated values to a list
-    if config['security']['rolesAllowed']:
-        config.set('security', 'rolesAllowed', re.sub(' *, *', ',', config['security']['rolesAllowed']).split(','))
 
     return True
 
@@ -76,6 +72,7 @@ def create_mailbox(i, mailbox):
         return True
 
 def is_authorized_email(e):
+    rolesAllowed = re.sub(' *, *', ',', config['security']['rolesAllowed']).split(',')
     return True
 
 def do_setup():
@@ -140,16 +137,16 @@ for num in msgList[0].split():
                 imgWidth, imgHeight = img.size
 
                 # Skip images below size threshold
-                if imgWidth >= config['images']['minWidth'] and imgHeight >= config['images']['minHeight']:
+                if imgWidth >= config.getint('images', 'minWidth') and imgHeight >= config.getint('images', 'minHeight'):
 
                     # Reduce image to max size, if necessary
-                    factorX = imgWidth / imgMaxWidth
-                    factorY = imgHeight / imgMaxHeight
+                    factorX = imgWidth / config.getint('images', 'maxWidth')
+                    factorY = imgHeight / config.getint('images', 'maxHeight')
                     if ( factorX ) > 1  or ( factorY ) > 1:
                         if factorX > factorY:
-                            img = img.resize( (imgMaxWidth, int(imgHeight/factorX)), resample=None, box=None, reducing_gap=None )
+                            img = img.resize( ( config.getint('images', 'maxWidth'), int(imgHeight/factorX) ), resample=None, box=None, reducing_gap=None )
                         else:
-                            img = img.resize( (int(imgWidth/factorY), imgMaxHeight), resample=None, box=None, reducing_gap=None )
+                            img = img.resize( ( int(imgWidth/factorY), config.getint('images', 'maxHeight') ), resample=None, box=None, reducing_gap=None )
 
                     print( '  > Format: ' + str(img.format) )
                     print( '  > Size: ', end='')
@@ -170,7 +167,7 @@ for num in msgList[0].split():
                     imgFn = imgFn.replace(' ', '_')
                     imgFn = imgFn + '.' + str(msgFilename).split('.')[-1]
                     print( imgStore, imgFn)
-                    img.save( config['paths'['processed'] + imgFn )
+                    img.save( config['paths']['processed'] + imgFn )
 
                     # Save the email
                     i.append( config['imap']['processedFolder'], None, None, e.as_bytes() )
