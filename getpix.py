@@ -8,18 +8,9 @@ from datetime import datetime
 
 config = configparser.ConfigParser(allow_no_value=True,interpolation=configparser.ExtendedInterpolation())
 
-# Minimum dimensions for attached photo
-imgMinWidth = 480
-imgMinHeight = 480
 
-# Images larger than this will be resized
-imgMaxWidth = 2000
-imgMaxHeight = 1000
-
-# Where to store image files
-imgHome = '/var/www/clients/client1/web7/home/obriend1/'
-imgOriginals = imgHome + 'Pictures/'
-imgStore = '/var/www/clients/client1/web7/web/wp-content/folder-slider/'
+def wr_log():
+    return True
 
 def get_config():
     global config
@@ -47,6 +38,7 @@ def get_config():
     config.set('security', 'rolesAllowed', '')
 
     config.add_section('authorizedEmails')
+    config.add_section('bannedEmails')
 
     config.read('getpix.ini')
 
@@ -73,7 +65,11 @@ def create_mailbox(i, mailbox):
 
 def is_authorized_email(e):
     rolesAllowed = re.sub(' *, *', ',', config['security']['rolesAllowed']).split(',')
-    return True
+    if e in config['bannedEmails']:
+        return False
+    x = False
+    y = e in config['authorizedEmails']
+    return x or y
 
 def do_setup():
     global i
@@ -82,6 +78,9 @@ def do_setup():
     create_mailbox(i, config['imap']['processedFolder'])
     create_mailbox(i, config['imap']['skippedFolder'])
     create_mailbox(i, config['imap']['errorsFolder'])
+
+def move_msg(i, e, f):
+
 
 def path_munge(fn, d, email):
     eFromLocalPart, eFromDomain = eFromAddr.split('@')
@@ -111,6 +110,7 @@ for num in msgList[0].split():
     e = email.message_from_bytes( data[1][0][1] )
     eSubj = e.__getitem__('Subject')
     eDate = e.__getitem__('Date')
+    eMsgId = e.__getitem__('Message-Id')
     eDateTime=datetime.strptime(eDate, '%a, %d %b %Y %H:%M:%S %z')
     eDate = eDateTime.strftime('%Y%m%d%H%M%S')
     eFromName, eFromAddr = email.utils.parseaddr( e.get('From') )
@@ -181,7 +181,7 @@ for num in msgList[0].split():
                     i.append( config['imap']['skippedFolder'], None, None, e.as_bytes() )
 
             n = n + 1
-            i.store( num, '+FLAGS', '\\Deleted' )
+#           i.store( num, '+FLAGS', '\\Deleted' )
             print()
 
         # End for msgPart in e.walk()
