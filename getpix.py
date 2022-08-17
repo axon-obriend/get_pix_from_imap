@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
-import os, io, re
+import os, io, re, configparser
 import imaplib, email
 import pprint
 from PIL import Image, ExifTags, ImageOps
 from datetime import datetime
+
+config = configparser.ConfigParser(allow_no_value=True,interpolation=configparser.ExtendedInterpolation())
 
 # Mailbox settings
 imapHost = 'hosting.axonsolutions.com'
@@ -24,6 +26,36 @@ imgHome = '/var/www/clients/client1/web7/home/obriend1/'
 imgOriginals = imgHome + 'Pictures/'
 imgStore = '/var/www/clients/client1/web7/web/wp-content/folder-slider/'
 
+def set_default_config():
+    global config
+
+    config.add_section('imap']
+    config.set('imap', 'server',          'localhost')
+    config.set('imap', 'username',        'email@example.com')
+    config.set('imap', 'password',        'password')
+    config.set('imap', 'inboxFolder',     'Inbox')
+    config.set('imap', 'processedFolder', 'Processed')
+    config.set('imap', 'skippedFolder',   'Skipped')
+
+    config.add_section('paths']
+    config.set('paths', 'basePath',   '/tmp/')
+    config.set('paths', 'originals',  '${basePath}originals/')
+    config.set('paths', 'processed',  '${basePath}processed/')
+
+    config.add_section('images']
+    config.set('images', 'minWidth',   '480')
+    config.set('images', 'minHeight',  '480')
+    config.set('images', 'maxWidth',  '2000')
+    config.set('images', 'maxHeight', '1000')
+
+    config.add_section('security']
+    config.set('security', 'rolesAllowed', 'contributor, author, editor, administrator')
+
+    config.add_section('authorizedEmails']
+
+    return True
+
+
 def mailbox_exists(i, mailbox):
     x, y = i.list()
     if x == 'OK':
@@ -42,13 +74,16 @@ def create_mailbox(i, mailbox):
     else:
         return True
 
+def is_authorized_email(e):
+    return True
+
 def do_setup():
     global i
-    os.makedirs(imgOriginals, mode=0o755, exist_ok=True)
-    os.makedirs(imgStore, mode=0o755, exist_ok=True)
-    create_mailbox(i, 'Processed')
-    create_mailbox(i, 'Errors')
-    create_mailbox(i, 'Skipped')
+    os.makedirs(config['paths']['originals'], mode=0o755, exist_ok=True)
+    os.makedirs(config['paths']['processed'], mode=0o755, exist_ok=True)
+    create_mailbox(i, config['imap']['processedFolder'])
+    create_mailbox(i, config['imap']['skippedFolder'])
+    create_mailbox(i, config['imap']['errorsFolder'])
 
 def path_munge(fn, d, email):
     eFromLocalPart, eFromDomain = eFromAddr.split('@')
@@ -56,11 +91,14 @@ def path_munge(fn, d, email):
     return p
 
 
-i = imaplib.IMAP4_SSL(imapHost)
-i.login(imapUser, imapPass)
+set_default_config()
+config.read('getpix.ini')
+
+i = imaplib.IMAP4_SSL( config['imap']['server'] )
+i.login(config['imap']['username'], config['imap']['password'])
 do_setup()
 
-i.select('Inbox')
+i.select( config['imap']['inboxFolder'] )
 tmp, msgList = i.search(None, 'UNDELETED')
 
 for num in msgList[0].split():
@@ -76,10 +114,10 @@ for num in msgList[0].split():
     eFromName, eFromAddr = email.utils.parseaddr( e.get('From') )
     eFromLocalPart, eFromDomain = eFromAddr.split('@')
 
-    if not e.is_multipart():
+    if not ( e.is_multipart() and is_authorized_email(eFromAddr) ):
 
         print( '> Skipping' )
-        i.append( 'Skipped', None, None, e.as_bytes() )
+        i.append( config['imap']['skippedFolder'], None, None, e.as_bytes() )
 
     else:
 
@@ -102,7 +140,7 @@ for num in msgList[0].split():
                 imgWidth, imgHeight = img.size
 
                 # Skip images below size threshold
-                if imgWidth >= imgMinWidth and imgHeight >= imgMinHeight:
+                if imgWidth >= config['images']['minWidth'] and imgHeight >= config['images']['minHeight']:
 
                     # Reduce image to max size, if necessary
                     factorX = imgWidth / imgMaxWidth
@@ -120,7 +158,7 @@ for num in msgList[0].split():
                     # Save the original attachment
                     imgSeq = eDateTime.strftime('%Y%m%d%H%M%S') + '{:03d}'.format(n)
                     filePath = eFromDomain + '/' + eFromLocalPart + '/'
-                    filePath = imgOriginals + filePath
+                    filePath = config['paths']['originals'] + filePath
                     os.makedirs(filePath, mode=0o755, exist_ok=True)
                     msgFile = open( filePath + imgSeq + '-' + str(msgFilename), "xb" )
                     msgFile.write( msgFiledata )
@@ -132,13 +170,13 @@ for num in msgList[0].split():
                     imgFn = imgFn.replace(' ', '_')
                     imgFn = imgFn + '.' + str(msgFilename).split('.')[-1]
                     print( imgStore, imgFn)
-                    img.save( imgStore + imgFn )
+                    img.save( config['paths'['processed'] + imgFn )
 
                     # Save the email
-                    i.append( 'Processed', None, None, e.as_bytes() )
+                    i.append( config['imap']['processedFolder'], None, None, e.as_bytes() )
 
                 else:
-                    i.append( 'Skipped', None, None, e.as_bytes() )
+                    i.append( config['imap']['skippedFolder'], None, None, e.as_bytes() )
 
             n = n + 1
             i.store( num, '+FLAGS', '\\Deleted' )
