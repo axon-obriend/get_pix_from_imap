@@ -8,11 +8,6 @@ from datetime import datetime
 
 config = configparser.ConfigParser(allow_no_value=True,interpolation=configparser.ExtendedInterpolation())
 
-# Mailbox settings
-imapHost = 'hosting.axonsolutions.com'
-imapUser = 'pix@eric.and.dans.wedding'
-imapPass = '9@iwLwXx5T'
-
 # Minimum dimensions for attached photo
 imgMinWidth = 480
 imgMinHeight = 480
