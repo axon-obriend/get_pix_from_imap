@@ -26,7 +26,7 @@ imgHome = '/var/www/clients/client1/web7/home/obriend1/'
 imgOriginals = imgHome + 'Pictures/'
 imgStore = '/var/www/clients/client1/web7/web/wp-content/folder-slider/'
 
-def set_default_config():
+def get_config():
     global config
 
     config.add_section('imap']
@@ -49,9 +49,15 @@ def set_default_config():
     config.set('images', 'maxHeight', '1000')
 
     config.add_section('security']
-    config.set('security', 'rolesAllowed', 'contributor, author, editor, administrator')
+    config.set('security', 'rolesAllowed', '')
 
     config.add_section('authorizedEmails']
+
+    config.read('getpix.ini')
+
+    # Convert comma-separated values to a list
+    if config['security']['rolesAllowed']:
+        config.set('security', 'rolesAllowed', re.sub(' *, *', ',', config['security']['rolesAllowed']).split(','))
 
     return True
 
@@ -91,8 +97,7 @@ def path_munge(fn, d, email):
     return p
 
 
-set_default_config()
-config.read('getpix.ini')
+get_config()
 
 i = imaplib.IMAP4_SSL( config['imap']['server'] )
 i.login(config['imap']['username'], config['imap']['password'])
