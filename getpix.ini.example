@@ -1,0 +1,25 @@
+[imap]
+server = localhost
+username = user@example.com
+password = password
+inboxfolder = Inbox
+processedfolder = Processed
+skippedfolder = Skipped
+
+[paths]
+basePath = /tmp/
+originals = ${basePath}originals/
+processed = ${basePath}processed/
+authUsers = ${basePath}authusers.csv
+
+[images]
+minwidth = 480
+minheight = 480
+maxwidth = 2000
+maxheight = 1000
+
+[security]
+rolesAllowed = contributor, author, editor, administrator
+
+[authorizedEmails]
+# someone@example.com
