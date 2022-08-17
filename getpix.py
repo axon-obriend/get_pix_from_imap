@@ -9,7 +9,8 @@ from datetime import datetime
 config = configparser.ConfigParser(allow_no_value=True,interpolation=configparser.ExtendedInterpolation())
 
 
-def wr_log():
+def wr_log(f, msg):
+    now = datetime.datetime.today().strftime('%Y-%m-%d %H:%M:%S')
     return True
 
 def get_config():
@@ -80,7 +81,7 @@ def do_setup():
     create_mailbox(i, config['imap']['errorsFolder'])
 
 def move_msg(i, e, f):
-
+    return True
 
 def path_munge(fn, d, email):
     eFromLocalPart, eFromDomain = eFromAddr.split('@')
@@ -106,7 +107,7 @@ for num in msgList[0].split():
     print('Processing message number', num)
 
     # Retrieve and parse an email
-    data = i.fetch(num, '(RFC822)')
+    data = i.fetch(num, '(UID RFC822)')
     e = email.message_from_bytes( data[1][0][1] )
     eSubj = e.__getitem__('Subject')
     eDate = e.__getitem__('Date')
