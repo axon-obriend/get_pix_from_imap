@@ -9,7 +9,7 @@ from datetime import datetime
 config = configparser.ConfigParser(allow_no_value=True,interpolation=configparser.ExtendedInterpolation())
 
 class msgPart:
-    def __init(self, p):
+    def __init__(self, p):
         self.msgPartObj = p
         self.contentType = str( p.get_content_type() )
         self.contentDisp = str( p.get_content_disposition() )
@@ -21,16 +21,17 @@ class message:
 
         # Retrieve and parse an email
         data = i.fetch(num, '(UID RFC822)')
+        e = email.message_from_bytes( data[1][0][1] )
 
-        self.emailObj = email.message_from_bytes( data[1][0][1] )
-        self.isMultipart = self.emailObj.is_multipart()
+        self.emailObj = e
+        self.isMultipart = e.is_multipart()
         self.messageId = e.__getitem__('Message-Id')
         self.fromName, self.fromAddr = email.utils.parseaddr( e.get('From') )
-        self.fromLocalPart, self.fromDomain = self.fromName.split('@')
-        self.dubject = e.__getitem__('Subject')
+        self.fromLocalPart, self.fromDomain = self.fromAddr.split('@')
+        self.subject = e.__getitem__('Subject')
         self.date = e.__getitem__('Date')
-        self.dateTime=datetime.strptime(eDate, '%a, %d %b %Y %H:%M:%S %z')
-        self.compactDate = eDateTime.strftime('%Y%m%d%H%M%S')
+        self.dateTime=datetime.strptime(self.date, '%a, %d %b %Y %H:%M:%S %z')
+        self.compactDate = self.dateTime.strftime('%Y%m%d%H%M%S')
         self.msgParts = {}
 
         if self.isMultipart:
@@ -136,6 +137,8 @@ tmp, msgList = i.search(None, 'UNDELETED')
 for num in msgList[0].split():
     print('Processing message number', num)
 
+    msg = message(i, num)
+
     # Retrieve and parse an email
     data = i.fetch(num, '(UID RFC822)')
     e = email.message_from_bytes( data[1][0][1] )
@@ -202,7 +205,7 @@ for num in msgList[0].split():
                     imgFn = imgSeq + '_' + re.sub('[`~@#$%^*{}[]<>/?]', '', eSubj) + '_(' + eFromName.replace(' ', '_') + ')'
                     imgFn = imgFn.replace(' ', '_')
                     imgFn = imgFn + '.' + str(msgFilename).split('.')[-1]
-                    print( imgStore, imgFn)
+                    print( config['paths']['processed'], imgFn)
                     img.save( config['paths']['processed'] + imgFn )
 
                     # Save the email
