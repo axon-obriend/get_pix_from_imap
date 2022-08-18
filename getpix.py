@@ -158,7 +158,7 @@ for num in msgList[0].split():
     else:
 
         n = 0
-        for msgPart in m.msgParts
+        for msgPart in msg.msgParts
             print( '> ContentType: ' + str( msgPart.get_content_type() ) )
             print( '> ContentDisposition: ' + str( msgPart.get_content_disposition() ) )
             print( '> FileName: ' + str( msgPart.get_filename() ) )
@@ -189,8 +189,8 @@ for num in msgList[0].split():
                     print( imgWidth, 'x', imgHeight )
 
                     # Save the original attachment
-                    imgSeq = m.compactDate + '{:03d}'.format(n)
-                    filePath = m.fromDomain + '/' + m.fromLocalPart + '/'
+                    imgSeq = msg.compactDate + '{:03d}'.format(n)
+                    filePath = msg.fromDomain + '/' + msg.fromLocalPart + '/'
                     filePath = config['paths']['originals'] + filePath
 
                     os.makedirs(filePath, mode=0o755, exist_ok=True)
@@ -200,17 +200,17 @@ for num in msgList[0].split():
 
                     # Save the processed image
                     # name = YYYYMMDDnnn_${Name}_-_${Subject}.ext
-                    imgFn = imgSeq + '_' + re.sub('[`~@#$%^*{}[]<>/?]', '', m.subject + '_(' + m.fromName.replace(' ', '_') + ')'
+                    imgFn = imgSeq + '_' + re.sub('[`~@#$%^*{}[]<>/?]', '', msg.subject + '_(' + msg.fromName.replace(' ', '_') + ')'
                     imgFn = imgFn.replace(' ', '_')
                     imgFn = imgFn + '.' + str(msgPart.fileName).split('.')[-1]
                     print( config['paths']['processed'], imgFn)
                     img.save( config['paths']['processed'] + imgFn )
 
                     # Save the email
-                    i.append( config['imap']['processedFolder'], None, None, m.emailObj.as_bytes() )
+                    i.append( config['imap']['processedFolder'], None, None, msg.emailObj.as_bytes() )
 
                 else:
-                    i.append( config['imap']['skippedFolder'], None, None, m.emailObj.as_bytes() )
+                    i.append( config['imap']['skippedFolder'], None, None, msg.emailObj.as_bytes() )
 
             n = n + 1
 #           i.store( num, '+FLAGS', '\\Deleted' )
