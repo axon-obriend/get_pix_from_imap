@@ -13,7 +13,7 @@ class msgPart:
         self.msgPartObj = p
         self.contentType = str( p.get_content_type() )
         self.contentDisp = str( p.get_content_disposition() )
-        self.fileName = str( p.get_filename() )
+        self.fileName = str( p.get_filename() ).replace('.jpeg', '.jpg')
         self.fileData = p.get_payload(decode=True)
 
 class message:
@@ -150,25 +150,22 @@ for num in msgList[0].split():
     eFromName, eFromAddr = email.utils.parseaddr( e.get('From') )
     eFromLocalPart, eFromDomain = eFromAddr.split('@')
 
-    if not ( e.is_multipart() and is_authorized_email(eFromAddr) ):
+    if not ( m.isMultipart and is_authorized_email(m.fromAddr) ):
 
         print( '> Skipping' )
-        i.append( config['imap']['skippedFolder'], None, None, e.as_bytes() )
+        i.append( config['imap']['skippedFolder'], None, None, m.emailObj.as_bytes() )
 
     else:
 
         n = 0
-        for msgPart in e.walk():
+        for msgPart in m.msgParts
             print( '> ContentType: ' + str( msgPart.get_content_type() ) )
             print( '> ContentDisposition: ' + str( msgPart.get_content_disposition() ) )
             print( '> FileName: ' + str( msgPart.get_filename() ) )
 
-            if msgPart.get_content_type() in [ "image/jpeg", "image/png" ]:
-                msgFilename = msgPart.get_filename().replace('.jpeg', '.jpg')
+            if msgPart.contentType in [ "image/jpeg", "image/png" ]:
 
-                # Create an image object from mail attachment
-                msgFiledata = msgPart.get_payload(decode=True)
-                img = Image.open( io.BytesIO(msgFiledata) )
+                img = Image.open( io.BytesIO(msgPart.fileData) )
 
                 # Correct the orientation of the image
                 img = ImageOps.exif_transpose(img)
@@ -192,27 +189,28 @@ for num in msgList[0].split():
                     print( imgWidth, 'x', imgHeight )
 
                     # Save the original attachment
-                    imgSeq = eDateTime.strftime('%Y%m%d%H%M%S') + '{:03d}'.format(n)
-                    filePath = eFromDomain + '/' + eFromLocalPart + '/'
+                    imgSeq = m.compactDate + '{:03d}'.format(n)
+                    filePath = m.fromDomain + '/' + m.fromLocalPart + '/'
                     filePath = config['paths']['originals'] + filePath
+
                     os.makedirs(filePath, mode=0o755, exist_ok=True)
-                    msgFile = open( filePath + imgSeq + '-' + str(msgFilename), "xb" )
-                    msgFile.write( msgFiledata )
+                    msgFile = open( filePath + imgSeq + '-' + str(msgPart.fileName), "xb" )
+                    msgFile.write( msgPart.fileData )
                     msgFile.close()
 
                     # Save the processed image
                     # name = YYYYMMDDnnn_${Name}_-_${Subject}.ext
-                    imgFn = imgSeq + '_' + re.sub('[`~@#$%^*{}[]<>/?]', '', eSubj) + '_(' + eFromName.replace(' ', '_') + ')'
+                    imgFn = imgSeq + '_' + re.sub('[`~@#$%^*{}[]<>/?]', '', m.subject + '_(' + m.fromName.replace(' ', '_') + ')'
                     imgFn = imgFn.replace(' ', '_')
-                    imgFn = imgFn + '.' + str(msgFilename).split('.')[-1]
+                    imgFn = imgFn + '.' + str(msgPart.fileName).split('.')[-1]
                     print( config['paths']['processed'], imgFn)
                     img.save( config['paths']['processed'] + imgFn )
 
                     # Save the email
-                    i.append( config['imap']['processedFolder'], None, None, e.as_bytes() )
+                    i.append( config['imap']['processedFolder'], None, None, m.emailObj.as_bytes() )
 
                 else:
-                    i.append( config['imap']['skippedFolder'], None, None, e.as_bytes() )
+                    i.append( config['imap']['skippedFolder'], None, None, m.emailObj.as_bytes() )
 
             n = n + 1
 #           i.store( num, '+FLAGS', '\\Deleted' )
