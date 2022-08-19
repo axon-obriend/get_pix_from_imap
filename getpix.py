@@ -48,7 +48,6 @@ class message:
             n = 0
             for p in e.walk():
                 self.msgParts.append( msgPart(p) )
-                print("Making multipart list", n, type(self.msgParts[n]))
                 n += 1
 
 def wr_log(f, msg):
