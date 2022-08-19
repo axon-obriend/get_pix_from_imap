@@ -10,11 +10,21 @@ config = configparser.ConfigParser(allow_no_value=True,interpolation=configparse
 
 class msgPart:
     def __init__(self, p):
-        self.msgPartObj = p
+        self.raw = p.as_string()
         self.contentType = str( p.get_content_type() )
         self.contentDisp = str( p.get_content_disposition() )
-        self.fileName = str( p.get_filename() ).replace('.jpeg', '.jpg')
-        self.fileData = p.get_payload(decode=True)
+        self.fileName = None
+        self.fileData = None
+        if self.contentDisp in [ "inline", "attachment" ]:
+            self.fileName = str( p.get_filename() ).replace('.jpeg', '.jpg')
+            self.fileData = p.get_payload(decode=True)
+
+    def saveFileData(self, path, fn):
+        os.makedirs(path, mode=0o755, exist_ok=True)
+        msgFile = open( path + "/" + fn, "xb" )
+        msgFile.write( self.fileData )
+        msgFile.close()
+
 
 class message:
     def __init__(self, i, num):
@@ -23,7 +33,7 @@ class message:
         data = i.fetch(num, '(UID RFC822)')
         e = email.message_from_bytes( data[1][0][1] )
 
-        self.emailObj = e
+        self.raw = e.as_string()
         self.isMultipart = e.is_multipart()
         self.messageId = e.__getitem__('Message-Id')
         self.fromName, self.fromAddr = email.utils.parseaddr( e.get('From') )
@@ -32,12 +42,13 @@ class message:
         self.date = e.__getitem__('Date')
         self.dateTime=datetime.strptime(self.date, '%a, %d %b %Y %H:%M:%S %z')
         self.compactDate = self.dateTime.strftime('%Y%m%d%H%M%S')
-        self.msgParts = {}
+        self.msgParts = []
 
         if self.isMultipart:
             n = 0
-            for p in self.emailObj.walk():
-                self.msgParts[n] = msgPart(p)
+            for p in e.walk():
+                self.msgParts.append( msgPart(p) )
+                print("Making multipart list", n, type(self.msgParts[n]))
                 n += 1
 
 def wr_log(f, msg):
@@ -139,33 +150,19 @@ for num in msgList[0].split():
 
     msg = message(i, num)
 
-    # Retrieve and parse an email
-    data = i.fetch(num, '(UID RFC822)')
-    e = email.message_from_bytes( data[1][0][1] )
-    eSubj = e.__getitem__('Subject')
-    eDate = e.__getitem__('Date')
-    eMsgId = e.__getitem__('Message-Id')
-    eDateTime=datetime.strptime(eDate, '%a, %d %b %Y %H:%M:%S %z')
-    eDate = eDateTime.strftime('%Y%m%d%H%M%S')
-    eFromName, eFromAddr = email.utils.parseaddr( e.get('From') )
-    eFromLocalPart, eFromDomain = eFromAddr.split('@')
-
-    if not ( m.isMultipart and is_authorized_email(m.fromAddr) ):
+    if not ( msg.isMultipart and is_authorized_email(msg.fromAddr) ):
 
         print( '> Skipping' )
-        i.append( config['imap']['skippedFolder'], None, None, m.emailObj.as_bytes() )
+        i.append( config['imap']['skippedFolder'], None, None, msg.emailObj.as_bytes() )
 
     else:
 
         n = 0
-        for msgPart in msg.msgParts
-            print( '> ContentType: ' + str( msgPart.get_content_type() ) )
-            print( '> ContentDisposition: ' + str( msgPart.get_content_disposition() ) )
-            print( '> FileName: ' + str( msgPart.get_filename() ) )
+        for p in msg.msgParts:
 
-            if msgPart.contentType in [ "image/jpeg", "image/png" ]:
+            if p.contentType in [ "image/jpeg", "image/png" ]:
 
-                img = Image.open( io.BytesIO(msgPart.fileData) )
+                img = Image.open( io.BytesIO(p.fileData) )
 
                 # Correct the orientation of the image
                 img = ImageOps.exif_transpose(img)
@@ -184,26 +181,18 @@ for num in msgList[0].split():
                         else:
                             img = img.resize( ( int(imgWidth/factorY), config.getint('images', 'maxHeight') ), resample=None, box=None, reducing_gap=None )
 
-                    print( '  > Format: ' + str(img.format) )
-                    print( '  > Size: ', end='')
-                    print( imgWidth, 'x', imgHeight )
-
                     # Save the original attachment
                     imgSeq = msg.compactDate + '{:03d}'.format(n)
-                    filePath = msg.fromDomain + '/' + msg.fromLocalPart + '/'
+                    filePath = msg.fromDomain + '/' + msg.fromLocalPart
                     filePath = config['paths']['originals'] + filePath
-
-                    os.makedirs(filePath, mode=0o755, exist_ok=True)
-                    msgFile = open( filePath + imgSeq + '-' + str(msgPart.fileName), "xb" )
-                    msgFile.write( msgPart.fileData )
-                    msgFile.close()
+                    p.saveFileData(filePath, imgSeq + "-" + p.fileName)
+                    print("Saving original:", filePath + "/" + imgSeq + "-" + p.fileName)
 
                     # Save the processed image
-                    # name = YYYYMMDDnnn_${Name}_-_${Subject}.ext
-                    imgFn = imgSeq + '_' + re.sub('[`~@#$%^*{}[]<>/?]', '', msg.subject + '_(' + msg.fromName.replace(' ', '_') + ')'
-                    imgFn = imgFn.replace(' ', '_')
-                    imgFn = imgFn + '.' + str(msgPart.fileName).split('.')[-1]
-                    print( config['paths']['processed'], imgFn)
+                    imgFn = imgSeq + '_' + re.sub('[`~@#$%^*{}[]<>/?]', "", msg.subject + '_(' + msg.fromName + ')')
+                    imgFn = imgFn.replace(' ', '_').replace('__', '_')
+                    imgFn = imgFn + '.' + str(p.fileName).split('.')[-1]
+                    print("Saving processed", config['paths']['processed'] + imgFn)
                     img.save( config['paths']['processed'] + imgFn )
 
                     # Save the email
@@ -214,14 +203,8 @@ for num in msgList[0].split():
 
             n = n + 1
 #           i.store( num, '+FLAGS', '\\Deleted' )
-            print()
 
-        # End for msgPart in e.walk()
-    # End if not e.is_multipart()
+        # End for p in msg.msgParts
+    # End if not msg.isMultipart
 
 i.close()
-
-#    print('Message: {0}\n'.format(num))
-#    print('Message %s\n%s\n' % (num, data[0][1].decode("utf-8")))
-#    pprint.pprint(data[0][1])
-#    break
